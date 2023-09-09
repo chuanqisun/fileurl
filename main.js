@@ -5,6 +5,30 @@ document.body.addEventListener("click", handleActions);
 window.addEventListener("hashchange", handleHashChange);
 handleHashChange();
 
+/**
+ * @param {MouseEvent} e
+ */
+async function handleActions(e) {
+  const action = e.target?.closest?.("[data-action]")?.getAttribute("data-action");
+  switch (action) {
+    case "upload": {
+      const [file] = await pickFiles();
+      const { name, type, size } = file;
+      const compressedFile = await compress(file);
+      const body = await fileToDataUrl(compressedFile);
+      location.hash = dictToSearchParamsString({ name, type, size, body });
+      break;
+    }
+
+    case "download": {
+      const hash = location.hash.slice(1);
+      const { name, body } = searchParamsStringToDict(hash);
+      downloadFile(name, body);
+      break;
+    }
+  }
+}
+
 async function handleHashChange() {
   const hash = location.hash.slice(1);
   const { name, type, size, body } = searchParamsStringToDict(hash);
@@ -32,21 +56,6 @@ async function dataUrlToBlob(dataUrl) {
 }
 
 /**
- * @param {MouseEvent} e
- */
-async function handleActions(e) {
-  const action = e.target?.closest?.("[data-action]")?.getAttribute("data-action");
-  console.debug("action", action);
-  if (action === "upload") {
-    const [file] = await pickFiles();
-    const { name, type, size } = file;
-    const compressedFile = await compress(file);
-    const body = await fileToDataUrl(compressedFile);
-    location.hash = dictToSearchParamsString({ name, type, size, body });
-  }
-}
-
-/**
  * @returns {Promise<FileList>}
  */
 async function pickFiles() {
@@ -60,6 +69,15 @@ async function pickFiles() {
 
     fileInput.click();
   });
+}
+
+function downloadFile(name, dataUrl) {
+  const a = document.createElement("a");
+  a.download = name;
+  a.href = dataUrl;
+
+  a.click();
+  a.remove();
 }
 
 /**
