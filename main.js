@@ -16,7 +16,8 @@ function handleHashChange() {
  */
 async function displayHash(dataUrl) {
   const blob = await dataUrlToBlob(dataUrl);
-  fileContent.textContent = await blob.text();
+  const decompressedBlob = await decompress(blob);
+  fileContent.textContent = await decompressedBlob.text();
 }
 
 /**
@@ -39,8 +40,8 @@ async function handleActions(e) {
   console.debug("action", action);
   if (action === "upload") {
     const [file] = await pickFiles();
-    console.log(file);
-    const fileDataUrl = await fileToDataUrl(file);
+    const compressedFile = await compress(file);
+    const fileDataUrl = await fileToDataUrl(compressedFile);
     location.hash = fileDataUrl;
   }
 }
@@ -81,4 +82,20 @@ async function fileToDataUrl(file) {
  */
 function dataUrlToBase64(dataUrl) {
   return dataUrl.slice(dataUrl.indexOf("base64,") + 7);
+}
+
+/**
+ * @param {Blob} blob
+ * @returns {Promise<Blob>}
+ */
+async function compress(blob) {
+  return await new Response(blob.stream().pipeThrough(new CompressionStream("deflate"))).blob();
+}
+
+/**
+ * @param {Blob} blob
+ * @returns {Promise<Blob>}
+ */
+async function decompress(blob) {
+  return await new Response(blob.stream().pipeThrough(new DecompressionStream("deflate"))).blob();
 }
