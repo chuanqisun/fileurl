@@ -5,6 +5,8 @@ document.body.addEventListener("click", handleActions);
 window.addEventListener("hashchange", handleHashChange);
 handleHashChange();
 
+// TODO use File System API to handle upload/down in chromium
+
 /**
  * @param {MouseEvent} e
  */
@@ -23,7 +25,7 @@ async function handleActions(e) {
     case "download": {
       const hash = location.hash.slice(1);
       const { name, body } = searchParamsStringToDict(hash);
-      downloadFile(name, body);
+      downloadFile(name, await dataUrlToTextContent(body));
       break;
     }
   }
