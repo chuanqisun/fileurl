@@ -1,23 +1,29 @@
 console.debug("hello fileurl");
 
 const fileContent = document.getElementById("file-content");
+const fileMetadata = document.getElementById("file-metadata");
 
 document.body.addEventListener("click", handleActions);
 window.addEventListener("hashchange", handleHashChange);
 handleHashChange();
 
-function handleHashChange() {
-  const dataUrl = location.hash.slice(1);
-  dataUrl ? displayHash(dataUrl) : displayEmpty();
+async function handleHashChange() {
+  const hash = location.hash.slice(1);
+  const searchParams = new URLSearchParams(hash);
+  const { name, type, size, body } = Object.fromEntries(searchParams.entries());
+
+  const textContent = body ? await dataUrlToTextContent(body) : "No file selected";
+  fileContent.textContent = textContent;
+  fileMetadata.textContent = JSON.stringify({ name, type, size }, null, 2);
 }
 
 /**
  * @param {string} dataUrl
  */
-async function displayHash(dataUrl) {
+async function dataUrlToTextContent(dataUrl) {
   const blob = await dataUrlToBlob(dataUrl);
   const decompressedBlob = await decompress(blob);
-  fileContent.textContent = await decompressedBlob.text();
+  return decompressedBlob.text();
 }
 
 /**
@@ -28,10 +34,6 @@ async function dataUrlToBlob(dataUrl) {
   return fetch(dataUrl).then((res) => res.blob());
 }
 
-function displayEmpty() {
-  fileContent.textContent = "No file selected";
-}
-
 /**
  * @param {MouseEvent} e
  */
@@ -40,9 +42,10 @@ async function handleActions(e) {
   console.debug("action", action);
   if (action === "upload") {
     const [file] = await pickFiles();
+    const { name, type, size } = file;
     const compressedFile = await compress(file);
-    const fileDataUrl = await fileToDataUrl(compressedFile);
-    location.hash = fileDataUrl;
+    const body = await fileToDataUrl(compressedFile);
+    location.hash = dictToHash({ name, type, size, body });
   }
 }
 
@@ -60,6 +63,20 @@ async function pickFiles() {
 
     fileInput.click();
   });
+}
+
+/**
+ * @param {Record<string, string>} dict
+ * @returns {string}
+ */
+function dictToHash(dict) {
+  const mutableDict = new URLSearchParams();
+  const metaEntries = Object.entries(dict);
+  metaEntries.forEach(([key, value]) => {
+    mutableDict.set(key, value);
+  });
+
+  return mutableDict.toString();
 }
 
 /**
@@ -89,13 +106,16 @@ function dataUrlToBase64(dataUrl) {
  * @returns {Promise<Blob>}
  */
 async function compress(blob) {
-  return await new Response(blob.stream().pipeThrough(new CompressionStream("deflate"))).blob();
+  const response = await new Response(blob.stream().pipeThrough(new CompressionStream("deflate")));
+  return response.blob();
 }
 
 /**
- * @param {Blob} blob
- * @returns {Promise<Blob>}
+ * @template {Blob} T
+ * @param {T} blob
+ * @returns {Promise<T>}
  */
 async function decompress(blob) {
-  return await new Response(blob.stream().pipeThrough(new DecompressionStream("deflate"))).blob();
+  const response = await new Response(blob.stream().pipeThrough(new DecompressionStream("deflate")));
+  return response.blob();
 }
