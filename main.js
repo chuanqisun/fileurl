@@ -17,7 +17,7 @@ async function handleActions(e) {
       const [file] = await pickFiles();
       const { name, type, size } = file;
       const compressedFile = await compress(file);
-      const body = await fileToDataUrl(compressedFile);
+      const body = await blobToDataUrl(compressedFile);
       location.hash = dictToSearchParamsString({ name, type, size, body });
       break;
     }
@@ -25,7 +25,8 @@ async function handleActions(e) {
     case "download": {
       const hash = location.hash.slice(1);
       const { name, body } = searchParamsStringToDict(hash);
-      downloadFile(name, await dataUrlToTextContent(body));
+      const dataUrl = await dataUrlToBlob(body).then(decompress).then(blobToDataUrl);
+      downloadDataUrl(name, dataUrl);
       break;
     }
   }
@@ -73,7 +74,11 @@ async function pickFiles() {
   });
 }
 
-function downloadFile(name, dataUrl) {
+/**
+ * @param {string} name
+ * @param {string} dataUrl
+ */
+function downloadDataUrl(name, dataUrl) {
   const a = document.createElement("a");
   a.download = name;
   a.href = dataUrl;
@@ -106,16 +111,16 @@ function searchParamsStringToDict(str) {
 }
 
 /**
- * @param {File} file
+ * @param {Blob} blob
  * @returns {Promise<string>}
  */
-async function fileToDataUrl(file) {
+async function blobToDataUrl(blob) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       resolve(e.target.result);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
 }
 
