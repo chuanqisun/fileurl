@@ -1,5 +1,3 @@
-console.debug("hello fileurl");
-
 const fileContent = document.getElementById("file-content");
 const fileMetadata = document.getElementById("file-metadata");
 
@@ -9,8 +7,7 @@ handleHashChange();
 
 async function handleHashChange() {
   const hash = location.hash.slice(1);
-  const searchParams = new URLSearchParams(hash);
-  const { name, type, size, body } = Object.fromEntries(searchParams.entries());
+  const { name, type, size, body } = searchParamsStringToDict(hash);
 
   const textContent = body ? await dataUrlToTextContent(body) : "No file selected";
   fileContent.textContent = textContent;
@@ -45,7 +42,7 @@ async function handleActions(e) {
     const { name, type, size } = file;
     const compressedFile = await compress(file);
     const body = await fileToDataUrl(compressedFile);
-    location.hash = dictToHash({ name, type, size, body });
+    location.hash = dictToSearchParamsString({ name, type, size, body });
   }
 }
 
@@ -69,7 +66,7 @@ async function pickFiles() {
  * @param {Record<string, string>} dict
  * @returns {string}
  */
-function dictToHash(dict) {
+function dictToSearchParamsString(dict) {
   const mutableDict = new URLSearchParams();
   const metaEntries = Object.entries(dict);
   metaEntries.forEach(([key, value]) => {
@@ -77,6 +74,15 @@ function dictToHash(dict) {
   });
 
   return mutableDict.toString();
+}
+
+/**
+ * @param {string} str
+ * @returns {Record<string, string>}
+ */
+function searchParamsStringToDict(str) {
+  const searchParams = new URLSearchParams(str);
+  return Object.fromEntries(searchParams.entries());
 }
 
 /**
